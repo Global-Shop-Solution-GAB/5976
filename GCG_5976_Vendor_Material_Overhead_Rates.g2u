@@ -1,0 +1,194 @@
+Program.Sub.ScreenSU.Start
+Gui.F_VenDis..Create
+Gui.F_VenDis..Caption("Vendor Material Overhead Rates")
+Gui.F_VenDis..Size(9510,4065)
+Gui.F_VenDis..MinX(0)
+Gui.F_VenDis..MinY(0)
+Gui.F_VenDis..Position(0,0)
+Gui.F_VenDis..BackColor(-2147483633)
+Gui.F_VenDis..MousePointer(0)
+Gui.F_VenDis..Event(UnLoad,F_VenDis_UnLoad)
+Gui.F_VenDis.GsGcVendDisc.Create(GsGridControl)
+Gui.F_VenDis.GsGcVendDisc.Size(9225,3690)
+Gui.F_VenDis.GsGcVendDisc.Position(75,30)
+Gui.F_VenDis.GsGcVendDisc.Event(CellValueChanged,GsGcVendDisc_CellValueChanged)
+Gui.F_VenDis.GsGcVendDisc.Anchor(15)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Bryan Pham
+'05/08/2020
+'Vendor Material Overhead Rates dashboard that allows user to enter discount rate for vendor.
+
+V.Local.sIcon.Declare
+v.Local.bFileExists.Declare
+
+F.Intrinsic.String.Build("{0}gss2.ico",V.Caller.GasDir,V.Local.sIcon)
+F.Intrinsic.File.Exists(V.Local.sIcon,V.Local.bFileExists)
+F.Intrinsic.Control.If(V.Local.bFileExists)
+	gui.F_VenDis..Icon(v.Local.sIcon)
+F.Intrinsic.Control.EndIf
+
+F.ODBC.Connection!con.OpenCompanyConnection
+f.Intrinsic.Control.CallSub(createDB_Table)
+f.Intrinsic.Control.CallSub(loadVendors)
+f.Intrinsic.Control.CallSub(loadDT)
+f.Intrinsic.Control.CallSub(loadGV)
+
+Gui.F_VenDis..Show
+F.ODBC.Connection!con.Close
+
+Program.Sub.Main.End
+
+Program.Sub.createDB_Table.Start
+F.Intrinsic.Control.Try
+V.Local.bTableExisted.Declare(boolean)
+'create DB table if it doesn't exist
+	F.ODBC.Connection!con.TableExists("MOVHD_RATE_VEND", V.Local.bTableExisted)
+	F.Intrinsic.Control.If(V.Local.bTableExisted, =, False)
+		F.ODBC.Connection!con.Execute("CREATE TABLE MOVHD_RATE_VEND (VENDOR CHAR(6) NOT NULL,PERCENTAGE NUMERIC(6,3) NOT NULL,FILLER CHAR(10) NOT NULL )")
+	F.Intrinsic.Control.EndIf
+	
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.createDB_Table.End
+
+Program.Sub.loadDT.Start
+F.Intrinsic.Control.Try
+v.Local.sSQL.Declare
+v.Local.iCnt.Declare
+'create dt 
+
+v.Local.sSQL.Set("Select RTRIM(A.VENDOR) AS VENDOR, RTRIM(B.NAME_VENDOR) AS NAME_VENDOR, A.PERCENTAGE as DISCOUNT from MOVHD_RATE_VEND A LEFT JOIN V_VENDOR_MASTER B ON RTRIM(A.VENDOR) = RTRIM(B.VENDOR) order by A.VENDOR")
+F.Intrinsic.Control.If(v.DataTable.dtVenDis.Exists,=, true)
+	f.Data.DataTable.Close("dtVenDis")
+F.Intrinsic.Control.EndIf
+f.Data.Datatable.CreateFromSQL("dtVenDis","con",v.Local.sSQL,true)
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+
+Program.Sub.loadDT.End
+
+Program.Sub.loadGV.Start
+F.Intrinsic.Control.Try
+v.Local.sRet.Declare
+'format the grid view
+gui.F_VenDis.GsGcVendDisc.AddGridviewFromDatatable("gvVenDis","dtVenDis")
+Gui.F_VenDis.GsGcVendDisc.SuspendLayout()
+Gui.F_VenDis.GsGcVendDisc.SetGridviewProperty("gvVenDis","AllowSort",True)
+Gui.F_VenDis.GsGcVendDisc.SetGridviewProperty("gvVenDis","AllowFilter",True)
+Gui.F_VenDis.GsGcVendDisc.SetGridviewProperty("gvVenDis","OptionsFindAlwaysVisible",True)
+
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","VENDOR","Caption","Vendor No")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","VENDOR","HeaderFontBold",true)
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","VENDOR","HeaderHAlignment","Center")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","VENDOR","CellHAlignment","Center")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","VENDOR","MinWidth",80)
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","VENDOR","AllowEdit",False)
+
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","NAME_VENDOR","Caption","Vendor Name")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","NAME_VENDOR","HeaderFontBold",true)
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","NAME_VENDOR","HeaderHAlignment","Center")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","NAME_VENDOR","CellHAlignment","Near")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","NAME_VENDOR","MinWidth",150)
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","NAME_VENDOR","AllowEdit",False)
+
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","DISCOUNT","Caption","Material Overhead %")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","DISCOUNT","HeaderFontBold",true)
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","DISCOUNT","HeaderHAlignment","Center")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","DISCOUNT","CellHAlignment","Center")
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","DISCOUNT","MinWidth",70)
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","DISCOUNT","AllowEdit",True)
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","DISCOUNT","ReadOnly",False)
+gui.F_VenDis.GsGcVendDisc.SetColumnProperty("gvVenDis","DISCOUNT","DisplayCustomNumeric","#,###,###,##0.00")
+
+Gui.F_VenDis.GsGcVendDisc.ResumeLayout()
+
+gui.F_VenDis.GsGcVendDisc.MainView("gvVenDis")
+f.Intrinsic.Control.ExitSub
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.loadGV.End
+
+Program.Sub.F_VenDis_UnLoad.Start
+F.Intrinsic.Control.Try
+
+Gui.F_VenDis..Visible(False)
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+
+Program.Sub.F_VenDis_UnLoad.End
+
+Program.Sub.catching.Start
+v.Local.sError.declare(string)
+F.Intrinsic.String.Build("Project: {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}","555555.g2u",V.Ambient.NewLine,v.Args.sub,V.Args.errorno,V.args.errordesc,V.Local.sError)
+f.Intrinsic.UI.Msgbox(v.Local.sError)
+F.Intrinsic.Control.End 
+Program.Sub.catching.End
+
+Program.Sub.GsGcVendDisc_CellValueChanged.Start
+F.Intrinsic.Control.Try
+v.Local.sVend.Declare
+v.Local.sSQL.Declare
+v.Local.fDiscount.Declare
+'update the DB with new discount
+f.Intrinsic.Control.SelectCase(v.Args.Column)
+	f.Intrinsic.Control.CaseAny("DISCOUNT","Discount")
+		f.ODBC.Connection!Conx.OpenCompanyConnection
+		gui.F_VenDis.GsGcVendDisc.GetCellValueByColumnName("gvVenDis","VENDOR",v.Args.RowIndex,v.Local.sVend)
+		gui.F_VenDis.GsGcVendDisc.GetCellValueByColumnName("gvVenDis","DISCOUNT",v.Args.RowIndex,v.Local.fDiscount)
+		f.Intrinsic.String.Build("Update MOVHD_RATE_VEND set PERCENTAGE = {0} where RTRIM(VENDOR) = '{1}';",v.Local.fDiscount,v.Local.sVend,v.Local.sSQL)
+		f.ODBC.Connection!Conx.Execute(v.Local.sSQL)
+		f.ODBC.Connection!Conx.Close
+		
+f.Intrinsic.Control.EndSelect
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.GsGcVendDisc_CellValueChanged.End
+
+Program.Sub.loadVendors.Start
+F.Intrinsic.Control.Try
+v.Local.sSQL.Declare
+v.Local.iCnt.Declare
+'delete vendors that are not in the vendor master
+v.Local.sSQL.Set("Delete from MOVHD_RATE_VEND where RTRIM(VENDOR) not in (Select RTRIM(VENDOR) from V_VENDOR_MASTER)")
+f.ODBC.Connection!Con.Execute(v.Local.sSQL)
+
+v.Local.sSQL.Set("Select RTRIM(VENDOR) as VENDOR from V_VENDOR_MASTER where RTRIM(VENDOR) <> ''")
+
+f.Intrinsic.Control.If(v.DataTable.dtVendor.Exists,=,true)
+	f.Data.DataTable.Close("dtVendor")
+f.Intrinsic.Control.EndIf
+
+
+f.Data.DataTable.CreateFromSQL("dtVendor","con",v.Local.sSQL,true)
+'update vendors from vendor master 
+f.Intrinsic.Control.For(v.Local.iCnt,0,v.DataTable.dtVendor.RowCount--,1)
+	f.Intrinsic.string.Build("Select * from MOVHD_RATE_VEND where RTRIM(VENDOR) = '{0}'",v.DataTable.dtVendor(v.Local.iCnt).VENDOR!FieldValTrim,v.Local.sSQL)
+	F.ODBC.Connection!con.OpenLocalRecordsetRW("rst",V.Local.sSQL)
+	F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,True)
+		F.ODBC.con!rst.AddNew
+		F.ODBC.con!rst.Set!VENDOR(v.DataTable.dtVendor(v.Local.iCnt).VENDOR!FieldValTrim)
+		F.ODBC.con!rst.Set!PERCENTAGE(0)
+		F.ODBC.con!rst.Set!FILLER(" ")
+		F.ODBC.con!rst.Update
+	f.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.Close
+f.Intrinsic.Control.Next(v.Local.iCnt)
+
+f.Intrinsic.Control.catch
+f.Intrinsic.Control.CallSub(catching,"sub",v.Ambient.CurrentSubroutine,"errorno",v.Ambient.ErrorNumber,"errordesc",v.Ambient.ErrorDescription)
+f.Intrinsic.Control.EndTry
+Program.Sub.loadVendors.End
